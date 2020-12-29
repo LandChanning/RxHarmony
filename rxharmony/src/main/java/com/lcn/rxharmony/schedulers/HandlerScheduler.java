@@ -85,9 +85,10 @@ final class HandlerScheduler extends Scheduler {
             }
 
             run = RxJavaPlugins.onSchedule(run);
-
+            // 对 runnable 参数进行包装，增加了 dispose() 方法
             ScheduledRunnable scheduled = new ScheduledRunnable(handler, run);
 
+            // 这块注释是 RxAndroid 的实现，放这这里作为参考
 //            Message message = Message.obtain(handler, scheduled);
 //            message.obj = this; // Used as token for batch disposal of this worker's runnables.
 //
@@ -103,8 +104,11 @@ final class HandlerScheduler extends Scheduler {
 //                return Disposable.disposed();
 //            }
 
-            // 因为目前鸿蒙的 InnerEvent 无法通过 Runnable 参数获取，所以各种 dispose 逻辑就无法按 Android 的那套实现。
-            // 目前的解决方案是将 Runnable 传入 InnerEvent.object，然后自定义 Handler 拿到事件调用 object 参数的 run 方法，同时设置 param 参数（该 Worker 实例化定义的固定值），
+            // 可以看到核心逻辑就是将传入 Runnable 参数进行包装，然后通过 handler 发到主线程
+
+            // 比较麻烦的是 dispose 处理，因为目前鸿蒙的 InnerEvent 实例无法通过 Runnable 参数获取，所以各种 dispose 逻辑就无法按 Android 的那套实现。
+            // 我的方案是将 Runnable 传入 InnerEvent.object，然后自定义 Handler，处理 InnerEvent 时强转 object 参数，然后直接调用 run 方法
+            // paramForDispose 是 long 类型的标志位（HandlerWorker 实例化定义的固定值），用于标志该 Worker 所调度的所有 Runnable，设置到 param 参数，
             // 这样 Dispose 时，可根据 object 移除单任务，也可通过 param 移除该 Worker 创建的所以任务
             InnerEvent message = InnerEvent.get(handler.getInnerEventId());
             message.object = scheduled;
@@ -113,7 +117,7 @@ final class HandlerScheduler extends Scheduler {
 
             // Re-check disposed state for removing in case we were racing a call to dispose().
             if (disposed) {
-                // 移除 obj 是该 scheduled 的任务，InnerEventId 必须指定，所以在自定义 Handler 中提供
+                // 通过 object 参数去移除当前构建的 ScheduledRunnable 的 InnerEvent，该方法必须指定 InnerEventId，所以在自定义 Handler 中提供
                 handler.removeEvent(handler.getInnerEventId(), scheduled);
                 return Disposable.disposed();
             }
@@ -125,6 +129,7 @@ final class HandlerScheduler extends Scheduler {
         public void dispose() {
             disposed = true;
 //            handler.removeCallbacksAndMessages(this /* token */);
+            // 通过 param 参数移除该 Worker 已调度的所有 InnerEvent
             handler.removeEvent(handler.getInnerEventId(), paramForDispose);
         }
 
@@ -170,6 +175,7 @@ final class HandlerScheduler extends Scheduler {
     static class RunnableObjHandler extends EventHandler {
 
         private static AtomicInteger count = new AtomicInteger();
+        // 每个 Handler 实例提供固定的 innerEventId
         private final int innerEventId;
 
         public RunnableObjHandler(EventRunner runner) throws IllegalArgumentException {
