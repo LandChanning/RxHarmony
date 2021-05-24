@@ -64,7 +64,7 @@ final class HandlerScheduler extends Scheduler {
 
         private volatile boolean disposed;
 
-        private static AtomicLong count = new AtomicLong();
+        private final static AtomicLong count = new AtomicLong();
         // 每次新建一个 Worker 都定义 param 参数，用于移除该 Worker.dispose() 方法中移除所有该类创建的任务
         private final long paramForDispose;
 
@@ -106,7 +106,7 @@ final class HandlerScheduler extends Scheduler {
 
             // 可以看到核心逻辑就是将传入 Runnable 参数进行包装，然后通过 handler 发到主线程
 
-            // 比较麻烦的是 dispose 处理，因为目前鸿蒙的 InnerEvent 实例无法通过 Runnable 参数获取，所以各种 dispose 逻辑就无法按 Android 的那套实现。
+            // 比较麻烦的是 dispose 处理，因为目前鸿蒙的 InnerEvent 实例无法通过 Runnable 参数获取，且 Handler 对象是外部传入的一个公用的，所以各种 dispose 逻辑就无法按 Android 的那套实现。
             // 我的方案是将 Runnable 传入 InnerEvent.object，然后自定义 Handler，处理 InnerEvent 时强转 object 参数，然后直接调用 run 方法
             // paramForDispose 是 long 类型的标志位（HandlerWorker 实例化定义的固定值），用于标志该 Worker 所调度的所有 Runnable，设置到 param 参数，
             // 这样 Dispose 时，可根据 object 移除单任务，也可通过 param 移除该 Worker 创建的所以任务
@@ -174,7 +174,7 @@ final class HandlerScheduler extends Scheduler {
 
     static class RunnableObjHandler extends EventHandler {
 
-        private static AtomicInteger count = new AtomicInteger();
+        private static final AtomicInteger count = new AtomicInteger();
         // 每个 Handler 实例提供固定的 innerEventId
         private final int innerEventId;
 

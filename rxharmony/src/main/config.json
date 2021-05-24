@@ -7,9 +7,9 @@
       "name": "1.0"
     },
     "apiVersion": {
-      "compatible": 3,
-      "target": 4,
-      "releaseType": "Beta1"
+      "compatible": 5,
+      "target": 5,
+      "releaseType": "Release"
     }
   },
   "deviceConfig": {
@@ -22,7 +22,8 @@
     "distro": {
       "deliveryWithInstall": true,
       "moduleName": "rxharmony",
-      "moduleType": "har"
+      "moduleType": "har",
+      "installationFree": false
     }
   }
 }
